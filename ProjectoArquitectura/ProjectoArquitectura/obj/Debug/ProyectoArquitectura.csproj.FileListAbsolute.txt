@@ -1,0 +1,6 @@
+c:\users\jimena machado\documents\visual studio 2015\Projects\ProjectoArquitectura\ProjectoArquitectura\bin\Debug\ProjectoArquitectura.exe.config
+c:\users\jimena machado\documents\visual studio 2015\Projects\ProjectoArquitectura\ProjectoArquitectura\bin\Debug\ProjectoArquitectura.exe
+c:\users\jimena machado\documents\visual studio 2015\Projects\ProjectoArquitectura\ProjectoArquitectura\bin\Debug\ProjectoArquitectura.pdb
+c:\users\jimena machado\documents\visual studio 2015\Projects\ProjectoArquitectura\ProjectoArquitectura\obj\Debug\ProyectoArquitectura.csprojResolveAssemblyReference.cache
+c:\users\jimena machado\documents\visual studio 2015\Projects\ProjectoArquitectura\ProjectoArquitectura\obj\Debug\ProjectoArquitectura.exe
+c:\users\jimena machado\documents\visual studio 2015\Projects\ProjectoArquitectura\ProjectoArquitectura\obj\Debug\ProjectoArquitectura.pdb
