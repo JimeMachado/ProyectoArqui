@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -11,7 +11,7 @@ namespace ProyectoArqui
 
         private int[] memoria_datos;
         private int[] memoria_instrucciones;
-        private int[] registros;
+        private int[32] registros;
 
         private int[] bus_datos;
         private int[] bus_instrucciones;
@@ -32,14 +32,14 @@ namespace ProyectoArqui
         private WaitHandle[] administrador_banderas;
 
         // primer bloque de parada en banderas
-        private AutoResetEvent administrador_banderas_nucleo1;
-        private AutoResetEvent administrador_banderas_nucleo2;
-        private AutoResetEvent administrador_banderas_nucleo3;
+        private AutoResetEvent bandera_administrador_nucleo1;
+        private AutoResetEvent bandera_administrador_nucleo2;
+        private AutoResetEvent bandera_administrador_nucleo3;
 
         // segundo bloque de para en banderas
-        private AutoResetEvent bandera_nucleo1;
-        private AutoResetEvent bandera_nucleo2;
-        private AutoResetEvent bandera_nucleo3;
+        private AutoResetEvent bandera_nucleo1_administradpr;
+        private AutoResetEvent bandera_nucleo2_administrador;
+        private AutoResetEvent bandera_nucleo3_administrador;
 
         private int numero_hilillos;
         private int quantum;
