@@ -30,7 +30,7 @@ namespace ProyectoArqui
         private int PC2;
         private int PC3;
 
-        private List<int> cola_contexto;
+        private Queue<int> cola_contexto;
         private Dictionary<int, int> mapaContextos;
         private int[,] contextos;
 
@@ -49,13 +49,17 @@ namespace ProyectoArqui
         private bool[] hilosTerminados;
         
         private int numero_hilillos;
-        private int quantum;
+        private int tamQuantum;
         private long reloj;
         private int numero_archivos;
         
-        private int dirHiloNucleo1;
-        private int dirHiloNucleo2;
-        private int dirHiloNucleo3;
+        private int quantum1;
+        private int quantum2;
+        private int quantum3;
+        
+        private int numHilillo1;
+        private int numHilillo2;
+        private int numHilillo3;
 
         private bool fin_programa;
 
@@ -63,8 +67,10 @@ namespace ProyectoArqui
 
             fin_programa = false;
             
+            reloj = -1;
+            
             // cola de contextos 
-            cola_contexto = new List<int>();
+            cola_contexto = new Queue<int>();
             // id del proceso
             contexto = new Dictionary<int, int>();
 
@@ -90,16 +96,20 @@ namespace ProyectoArqui
             cache_datos_nucleo2 = new int[6, 4];
             cache_datos_nucleo3 = new int[6, 4];
 
-            //BANDERAS
+            //"BANDERAS"
             administrador_banderas = new WaitHandle[3];
+            
+            bandera_administrador_nucleo1 = new AutoResetEvent(false);
+            bandera_administrador_nucleo2 = new AutoResetEvent(false);
+            bandera_administrador_nucleo3 = new AutoResetEvent(false);
 
-            bandera_nucleo1 = new AutoResetEvent(false);
-            bandera_nucleo2 = new AutoResetEvent(false);
-            bandera_nucleo3 = new AutoResetEvent(false);
+            bandera_nucleo1_administrador = new AutoResetEvent(false);
+            bandera_nucleo2_administrador = new AutoResetEvent(false);
+            bandera_nucleo3_administrador = new AutoResetEvent(false);
 
-            administrador_banderas[0] = bandera_nucleo1;
-            administrador_banderas[1] = bandera_nucleo2;
-            administrador_banderas[2] = bandera_nucleo3;
+            administrador_banderas[0] = bandera_nucleo1_administrador;
+            administrador_banderas[1] = bandera_nucleo2_administrador;
+            administrador_banderas[2] = bandera_nucleo3_administrador;
 
             // INICIALIZACIÓN
             // inicializamos la memoria principal de datos
@@ -171,7 +181,7 @@ namespace ProyectoArqui
                 }
             Console.WriteLine("Por favor ingrese el número de Quantum para cada 'hilillo'.");
             // parse para asegurar que se un integer
-            quantum = int.Parse(Console.ReadLine());
+            tamQuantum = int.Parse(Console.ReadLine());
         }
         
         public void leerArchivos(){
@@ -196,23 +206,21 @@ namespace ProyectoArqui
                 System.IO.StreamReader sr;
             
             for (int i = 0; i < numero_archivos; i++){
-                
-                ++contador;
-                leerLinea(ref sr, ref puntero);
+                contador ++;
+                int punteroNuevo = leerLinea(ref sr, puntero);
                 //se agrega a la lista el id del hilo que se usa para cargar la direccionde memoria
-                cola_contexto.Add(puntero);
+                cola_contexto.Enqueue(contador);
                 // se agrega el id del hilo y el numero de hilo
-                mapaContextos.Add(puntero,contador);
+                mapaContextos.Add(contador, puntero);
                 // se lee el archivo
                 sr = new System.IO.StreamReader(file);
                 // cargamos el archivo para leerlo linea por linea
                 sr.Close();
-
+                puntero = punteroNuevo;
             }
-            
         }
         
-         public void leerLinea(ref System.IO.StreamReader sr, ref int puntero){
+         public int leerLinea(ref System.IO.StreamReader sr, int puntero){
              
             String linea;
             int[] temp;
@@ -227,6 +235,7 @@ namespace ProyectoArqui
                 }
                 linea = sr.ReadLine();
             }
+            return puntero;
         }
         
         public void administradorHilos()
@@ -234,19 +243,17 @@ namespace ProyectoArqui
             int contador = cola_contexto.Count;
             
             // creacion de hilos
-            Thread hilonucleo1 = new Thread(new ThreadStart(nucleo1));
-            hilonucleo1.Name = "HiloNucleo1";
-            hilonucleo1.Start();
-            Thread hilonucleo2 = new Thread(new ThreadStart(nucleo2));
-            hilonucleo2.Name = "HiloNucleo2";
-            hilonucleo2.Start();
-            Thread hilonucleo3 = new Thread(new ThreadStart(nucleo3));
-            hilonucleo3.Name = "HiloNucleo3";
-            hilonucleo3.Start();
+            Thread hiloNucleo1 = new Thread(new ThreadStart(nucleo1));
+            hiloNucleo1.Name = "hiloNucleo1";
+            hiloNucleo1.Start();
+            Thread hiloNucleo2 = new Thread(new ThreadStart(nucleo2));
+            hiloNucleo2.Name = "hiloNucleo2";
+            hiloNucleo2.Start();
+            Thread hiloNucleo3 = new Thread(new ThreadStart(nucleo3));
+            hiloNucleo3.Name = "hiloNucleo3";
+            hiloNucleo3.Start();
             
-            reloj = -1;
-            
-            while(cola_contexto.Count != 0) {
+            while(cola_contexto.Count > 0) {
                 if(contador - 1 == 0)
                     contador = cola_contexto.Count;
                 else
@@ -254,7 +261,73 @@ namespace ProyectoArqui
                     
                 WaitHandle.WaitAll(administrador_banderas);
                 
-                //TO-DO aqui va el codigo que asigna hilo nuevo
+                //revisa si se acabo el hilillo del nucleo 1 y asigna uno nuevo con su contexto
+                if(!hilosTerminados[numHilillo1]) {
+                    numHilillo1 = cola_contexto.Dequeue();
+                    quantum1 = tamQuantum;
+                    for(int i = 0; i < 32; i++){
+                        registros1[i] = contextos[numHilillo1, i]; 
+                    }
+                    PC1 = contextos[numHilillo1, 32];
+                }
+                //sino revisa si se le acabo el quantum guarda contexto y asigna uno nuevo con su contexto
+                else if(quantum1 == 0) {
+                    for(int n = 0; n < 32, n ++){
+                            contextos[numHilillo1, n] = registros2[n];   
+                        }
+                    contextos[numHilillo1, 32] = PC2;
+                    cola_contexto.Enqueue(numHilillo1);
+                    numHilillo1 =  cola_contexto.Dequeue();
+                    quantum1 = tamQuantum;
+                    for(int i = 0; i < 32; i++){
+                    registros1[i] = contextos[numHilillo1, i]; 
+                    }
+                    PC1 = contextos[numHilillo1, 32];
+                }
+                
+                //revisa si se acabo el hilillo del nucleo 2 y asigna uno nuevo
+                if(!hilosTerminados[numHilillo2] && (cola_contexto.Count > 0)) {
+                    numHilillo2 = cola_contexto.Dequeue();
+                    for(int i = 0; i < 32; i++){
+                        registros2[i] = contextos[numHilillo2, i]; 
+                    }
+                    PC2 = contextos[numHilillo2, 32];
+                    quantum2 = tamQuantum;
+                }
+                //sino revisa si se le acabo el quantum y asigna uno nuevo
+                else if(quantum2 == 0) {
+                    for(int n = 0; n < 32, n ++){
+                        contextos[numHilillo2, n] = registros2[n];   
+                    }
+                    contextos[numHilillo2, 32] = PC2;
+                    cola_contexto.Enqueue(numHilillo2);
+                    numHilillo2 = cola_contexto.Dequeue();
+                    quantum2 = tamQuantum;
+                    for(int i = 0; i < 32; i++){
+                        registros2[i] = contextos[numHilillo2, i]; 
+                    }
+                    PC2 = contextos[numHilillo2, 32];
+                }
+                
+                //revisa si se acabo el hilillo del nucleo 3 y asigna uno nuevo
+                if(!hilosTerminados[numHilillo3] && (cola_contexto.Count)) {
+                    numHilillo3 = cola_contexto.Dequeue();
+                    quantum3 = tamQuantum;
+                    for(int i = 0; i < 32; i++){
+                        registros3[i] = contextos[numHilillo3, i]; 
+                    }
+                    PC3 = contextos[numHilillo3, 32];
+                } 
+                //sino revisa si se le acabo el quantum y asigna uno nuevo
+                else if(quantum3 == 0){
+                    for(int n = 0; n < 32, n ++){
+                        contextos[numHilillo3, n] = registros3[n];   
+                    }
+                    contextos[numHilillo3, 32] = PC3;
+                    cola_contexto.Enqueue(numHilillo3);
+                    numHilillo3 =  cola_contexto.Dequeue();
+                    quantum3 = tamQuantum;
+                }
                 
                 reloj++;
                 
@@ -264,20 +337,57 @@ namespace ProyectoArqui
             }
         }
 
+        public void nucleo1() {
+            int[] instruccionActual = new int[4];
+            bool aciertoCache = false;
+            bool busOcupado = true;
+    
+            while(!fin_programa) {
+                bandera_administrador_nucleo1.WaitOne();
+                for(int i = 0; i < 32; i++){
+                    registros1[i] = contextos[numHilillo1, i]; 
+                }
+                PC1 = contextos[numHilillo1, 32];
+                while(quantum1 != 0 && !hilosTerminados[numHilillo1]){
+                    int i = 0;
+                    int numeroBloque = PC1 / 16;
+                    //revisar si esta en cache
+                    if(numeroBloque == cache_instrucciones_nucleo1[16, numeroBloque % 4])
+                        aciertoCache = true;
+                    if(!aciertoCache){
+                        while(busOcupado){
+                            if(Monitor.TryEnter(bus_instrucciones)){
+                                try{
+                                    //subir instruccion a cache
+                                    cache_instrucciones_nucleo1
+                                    busOcupado = false;
+                                }
+                                finally{
+                                    Monitor.Exit(bus_instrucciones);
+                                }
+                            }
+                        }
+                    }
+                    int numeroInstruccion = PC1 % 4;
+                    for(int j = numeroInstruccion * 4; j < numeroInstruccion + 4; j++){
+                        instruccionActual[j] = cache_instrucciones_nucleo1[numeroInstruccion, numeroBloque];
+                    }
+                    PC1 += 4;
+                    instruccionesNucleo1(instruccionActual, numHilillo1);
+                    quantum1--;
+                    bandera_nucleo1_administrador.Set();
+                }
+            }
+        }
+        
         public void nucleo2() {
-            int quantum;
             int[] instruccionActual = new int[4];
             bool aciertoCache = false;
             bool busOcupado = true;
     
             while(!fin_programa) {
                 bandera_administrador_nucleo2.WaitOne();
-                int numeroHilo = mapaContextos[dirHiloNucleo2];
-                for(int i = 0; i < 32; i++){
-                    registros2[i] = contextos[numeroHilo, i]; 
-                }
-                PC2 = contextos[numeroHilo, 32];
-                while(quantum != 0 && !hilosTerminados[dirHiloNucleo2]){
+                while(quantum2 != 0 && !hilosTerminados[numHilillo2]){
                     int i = 0;
                     int numeroBloque = PC2 / 16;
                     //revisar si esta en cache
@@ -285,50 +395,34 @@ namespace ProyectoArqui
                         aciertoCache = true;
                     if(!aciertoCache){
                         while(busOcupado){
-                            if(Monitor.TryEnter(bus_datos)){
-                                try{
-                                    //subir instruccion a cache
-                                    cache_instrucciones_nucleo2
-                                    busOcupado = false;
-                                }
-                                finally{
-                                    Monitor.Exit(bus);
-                                }
+                            if(Monitor.TryEnter(bus_instrucciones)){
+                                //subir instruccion a cache
+                                cache_instrucciones_nucleo2
+                                busOcupado = false;
+                                Monitor.Exit(bus_instrucciones);
                             }
                         }
                     }
                     int numeroInstruccion = PC2 % 4;
                     for(int j = numeroInstruccion * 4; j < numeroInstruccion + 4; j++){
-                        intruccionActual[j] = cache_instrucciones_nucleo2[numeroInstruccion, numeroBloque];
+                        instruccionActual[j] = cache_instrucciones_nucleo2[numeroInstruccion, numeroBloque];
                     }
                     PC2 += 4;
-                    instruccionesNucleo2(instruccionActual, numeroHilo);
-                    quantum--;
-                    if(quantum == 0 || !hilosTerminados[numeroHilo]){
-                        for(int n = 0; n < 32, n ++){
-                            contextos[numHilo, n] = registros2[n];   
-                        }
-                        contextos[numHilo, 32] = PC2;
-                    }
+                    instruccionesNucleo2(instruccionActual, numHilillo2);
+                    quantum2--;
                     bandera_nucleo2_administrador.Set();
                 }
             }
-        }       
+        }        
                 
         public void nucleo3() {
-            int quantum;
             int[] instruccionActual = new int[4];
             bool aciertoCache = false;
             bool busOcupado = true;
             
             while(!fin_programa) {
                 bandera_administrador_nucleo3.WaitOne();
-                int numeroHilo = mapaContextos[dirHiloNucleo3];
-                for(int i = 0; i < 32; i++){
-                    registros3[i] = contextos[numeroHilo, i]; 
-                }
-                PC3 = contextos[numeroHilo, 32];
-                while(quantum != 0 && !hilosTerminados[dirHiloNucleo3]){
+                while(quantum3 != 0 && !hilosTerminados[numHilillo3]){
                     int i = 0;
                     int numeroBloque = PC3 / 16;
                     //revisar si esta en cache
@@ -350,17 +444,11 @@ namespace ProyectoArqui
                     }
                     int numeroInstruccion = PC3 % 4;
                     for(int j = numeroInstruccion * 4; j < numeroInstruccion + 4; j++){
-                        intruccionActual[j] = cache_instrucciones_nucleo3[numeroInstruccion, numeroBloque];
+                        instruccionActual[j] = cache_instrucciones_nucleo3[numeroInstruccion, numeroBloque];
                     }
                     PC3 += 4;
-                    instruccionesNucleo3(instruccionActual, numeroHilo);
-                    quantum--;
-                    if(quantum == 0 || !hilosTerminados[numeroHilo]){
-                        for(int n = 0; n < 32, n ++){
-                            contextos[numHilo, n] = registros3[n];   
-                        }
-                        contextos[numHilo, 32] = PC3;
-                    }
+                    instruccionesNucleo3(instruccionActual, numHilillo3);
+                    quantum3--;
                     bandera_nucleo3_administrador.Set();
                 }
             }
